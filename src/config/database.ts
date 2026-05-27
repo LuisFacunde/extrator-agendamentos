@@ -3,32 +3,53 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Inicializa o Thick Mode se o caminho do Instant Client for fornecido no .env
-if (process.env.ORACLE_CLIENT_PATH) {
-    try {
-        oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH });
-        console.log("✅ Oracle Client (Thick Mode) inicializado com sucesso.");
-    } catch (err: any) {
-        // NJS-083 ocorre se o cliente já tiver sido inicializado
-        if (err.code !== 'NJS-083') {
-            console.error("Erro ao inicializar Oracle Client:", err);
-        }
+function validateEnv(): void {
+    const required = ['DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT', 'DB_SERVICE'];
+    const missing = required.filter(key => !process.env[key]);
+    if (missing.length > 0) {
+        throw new Error(`Variáveis de ambiente ausentes: ${missing.join(', ')}`);
     }
-} else {
-    console.warn("⚠️ ORACLE_CLIENT_PATH não definido no .env. Tentando conectar em Thin Mode...");
 }
 
-export async function getConnection(): Promise<oracledb.Connection> {
+function initOracleClient(): void {
+    if (process.env.ORACLE_CLIENT_PATH) {
+        try {
+            oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH });
+            console.log("Oracle Client (Thick Mode) inicializado.");
+        } catch (err: any) {
+            if (err.code !== 'NJS-083') {
+                throw new Error(`Erro ao inicializar Oracle Client: ${err.message}`);
+            }
+        }
+    } else {
+        console.warn("ORACLE_CLIENT_PATH não definido. Usando Thin Mode...");
+    }
+}
+
+let pool: oracledb.Pool;
+
+export async function initPool(): Promise<void> {
+    validateEnv();
+    initOracleClient();
+
+    pool = await oracledb.createPool({
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        connectString: `${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_SERVICE}`,
+        poolMin: 2,
+        poolMax: 10,
+        poolIncrement: 1,
+    });
+    console.log("Connection pool criado com sucesso.");
+}
+
+export async function withConnection<T>(
+    fn: (connection: oracledb.Connection) => Promise<T>
+): Promise<T> {
+    const connection = await pool.getConnection();
     try {
-        const connection = await oracledb.getConnection({
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            connectString: `${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_SERVICE}`,
-        });
-        console.log("Conexão com o Oracle estabelecida com sucesso");
-        return connection;
-    } catch (error) {
-        console.error("Erro ao conectar ao Oracle:", error);
-        throw error;
+        return await fn(connection);
+    } finally {
+        await connection.close();
     }
 }
