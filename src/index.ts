@@ -1,14 +1,12 @@
-import oracledb from "oracledb";
-import { getConnection } from './config/database';
+import { initPool } from "./config/database";
+import { fetchPacientes } from "./services/oracleService";
 
 async function main() {
-    try {
-        const connection: oracledb.Connection = await getConnection();
-        console.log('✅ Conexão com Oracle estabelecida!');
-        await connection.close();
-    } catch (err) {
-        console.error('❌ Erro ao conectar:', err);
-    }
+    await initPool();
+
+    const pacientes = await fetchPacientes(10);
+    console.log(`${pacientes.length} pacientes retornados:`);
+    console.log(JSON.stringify(pacientes, null, 2));
 }
 
-main();
+main().catch(console.error);
