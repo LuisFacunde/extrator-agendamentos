@@ -12,7 +12,7 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
                 SELECT pdc.cd_atendimento AS Atendimento,
                         p.cd_paciente AS prontuario,
                         p.nm_paciente AS paciente,
-                        TO_CHAR(TRUNC(pdc.dh_criacao), 'DD/MM/YYYY') AS data_criacao,
+                        TRUNC(pdc.dh_criacao) AS data_criacao,
                         erc.lo_valor AS observacao
                 FROM pw_documento_clinico pdc
                     JOIN pw_editor_clinico pec ON pdc.cd_documento_clinico = pec.cd_documento_clinico
@@ -21,7 +21,7 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
                     JOIN atendime a ON pdc.cd_atendimento = a.cd_atendimento
                     JOIN paciente p ON a.cd_paciente = p.cd_paciente
                 WHERE pdc.tp_status = 'FECHADO'
-                    AND pec.cd_documento = 583
+                    AND pec.cd_documento IN (583, 603, 604, 605, 606)
                     AND ec.ds_identificador IN ('obs_2229_1')
                     AND erc.lo_valor IS NOT NULL
                     AND pdc.dh_criacao >= ADD_MONTHS(SYSDATE, -12)
