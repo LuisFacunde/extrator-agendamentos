@@ -21,7 +21,7 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
                     JOIN atendime a ON pdc.cd_atendimento = a.cd_atendimento
                     JOIN paciente p ON a.cd_paciente = p.cd_paciente
                 WHERE pdc.tp_status = 'FECHADO'
-                    AND pec.cd_documento = 583
+                    AND pec.cd_documento IN (583, 603, 604, 605, 606)
                     AND ec.ds_identificador IN ('obs_2229_1')
                     AND erc.lo_valor IS NOT NULL
                     AND pdc.dh_criacao >= ADD_MONTHS(SYSDATE, -12)
