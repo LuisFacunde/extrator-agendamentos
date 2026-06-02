@@ -12,7 +12,7 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
                 SELECT pdc.cd_atendimento AS Atendimento,
                         p.cd_paciente AS prontuario,
                         p.nm_paciente AS paciente,
-                        TO_CHAR(TRUNC(pdc.dh_criacao), 'DD/MM/YYYY') AS data_criacao,
+                        TRUNC(pdc.dh_criacao) AS data_criacao,
                         erc.lo_valor AS observacao
                 FROM pw_documento_clinico pdc
                     JOIN pw_editor_clinico pec ON pdc.cd_documento_clinico = pec.cd_documento_clinico
@@ -39,5 +39,32 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
         );
 
         return result.rows ?? [];
+    });
+}
+
+export async function updateDtRetornoCalc(cdPaciente: number, dtRetorno: Date | null): Promise<void> {
+    return withConnection(async (connection) => {
+
+        if (!dtRetorno || dtRetorno <= new Date()) {
+            console.log(`[Oracle] Paciente ${cdPaciente}: data ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : 'NULL'} não é futura. Nenhuma atualização realizada.`);
+            return;
+        }
+
+        const result = await connection.execute(
+            `UPDATE fav_lista_espera 
+             SET dt_retorno_calc = :dtRetorno 
+             WHERE cd_paciente = :cdPaciente
+               AND :dtRetorno > TRUNC(SYSDATE)`,
+            {
+                dtRetorno: dtRetorno,
+                cdPaciente: cdPaciente
+            },
+            { autoCommit: true }
+        );
+        if (result.rowsAffected && result.rowsAffected > 0) {
+            console.log(`[Oracle] Paciente ${cdPaciente}: dt_retorno_calc atualizado para ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : 'NULL'}.`);
+        } else {
+            console.log(`[Oracle] Paciente ${cdPaciente}: Nenhuma linha atualizada (data de retorno ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : 'NULL'} não é futura ou paciente não encontrado na tabela fav_lista_espera).`);
+        }
     });
 }
