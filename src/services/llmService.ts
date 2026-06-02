@@ -6,7 +6,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 export interface PacienteRetorno {
     prontuario: number;
     nome: string;
-    dataRetorno: string | null;
+    dataRetorno: Date | null;
     motivo: string;
 }
 
@@ -73,7 +73,7 @@ export async function processReturnDates(pacientes: Paciente[]): Promise<Pacient
                                             type: "STRING",
                                             description: "Breve explicação sobre como a data de retorno foi identificada ou calculada com base na observação."
                                         }
-                                    },
+                                     },
                                     required: ["prontuario", "nome", "dataRetorno"]
                                 }
                             }
@@ -104,9 +104,25 @@ export async function processReturnDates(pacientes: Paciente[]): Promise<Pacient
         const resultList = data.pacientes || [];
 
         return resultList.map((item: any) => {
-            const dataRet = item.dataRetorno === "null" || item.dataRetorno === "undefined" || !item.dataRetorno
-                ? null
-                : item.dataRetorno;
+            let dataRet: Date | null = null;
+            if (item.dataRetorno && item.dataRetorno !== "null" && item.dataRetorno !== "undefined" && item.dataRetorno !== "") {
+                const parts = item.dataRetorno.split("/");
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1; // 0-based month
+                    const year = parseInt(parts[2], 10);
+                    const parsedDate = new Date(year, month, day);
+                    if (!isNaN(parsedDate.getTime())) {
+                        dataRet = parsedDate;
+                    }
+                } else {
+                    const parsedDate = new Date(item.dataRetorno);
+                    if (!isNaN(parsedDate.getTime())) {
+                        dataRet = parsedDate;
+                    }
+                }
+            }
+
             return {
                 prontuario: item.prontuario,
                 nome: item.nome,

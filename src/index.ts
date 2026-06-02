@@ -1,11 +1,11 @@
 import { initPool } from "./config/database";
-import { fetchPacientes } from "./services/oracleService";
+import { fetchPacientes, updateDtRetornoCalc } from "./services/oracleService";
 import { processReturnDates } from "./services/llmService";
 
 async function main() {
     await initPool();
 
-    const pacientes = await fetchPacientes(200);
+    const pacientes = await fetchPacientes(10);
     console.log(`\n--- ${pacientes.length} pacientes recuperados do Oracle ---`);
 
     console.log("\nEnviando observações e datas de criação para a API do Gemini processar...");
@@ -16,9 +16,14 @@ async function main() {
         resultados.map(r => ({
             "Prontuário": r.prontuario,
             "Paciente": r.nome,
-            "Retorno Estimado": r.dataRetorno || "Sem Retorno / Excedido (>12m)"
+            "Retorno Estimado": r.dataRetorno ? r.dataRetorno.toLocaleDateString('pt-BR') : "Sem Retorno / Excedido (>12m)"
         }))
     );
+
+    console.log("\n=== SALVANDO RESULTADOS NO ORACLE (TABELA fav_lista_espera) ===");
+    for (const r of resultados) {
+        await updateDtRetornoCalc(r.prontuario, r.dataRetorno);
+    }
 }
 
 main().catch(console.error);
