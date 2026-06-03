@@ -46,7 +46,7 @@ export async function updateDtRetornoCalc(cdPaciente: number, dtRetorno: Date | 
     return withConnection(async (connection) => {
 
         if (!dtRetorno || dtRetorno <= new Date()) {
-            console.log(`[Oracle] Paciente ${cdPaciente}: data ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : 'NULL'} não é futura. Nenhuma atualização realizada.`);
+            console.log(`Paciente ${cdPaciente}: a data ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : ''} não é futura. Nenhuma atualização realizada.`);
             return;
         }
 
