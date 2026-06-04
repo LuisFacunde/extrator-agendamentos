@@ -10,16 +10,11 @@ export interface PacienteRetorno {
     motivo: string;
 }
 
-/**
- * Envia as observações e datas de criação de uma lista de pacientes para o Gemini
- * para identificar ou calcular a data de retorno (limite de 12 meses).
- */
 export async function processReturnDates(pacientes: Paciente[]): Promise<PacienteRetorno[]> {
     if (!pacientes || pacientes.length === 0) {
         return [];
     }
 
-    // Formata a lista de pacientes de forma limpa para enviar ao prompt
     const formattedList = pacientes.map((p, index) => {
         return `${index + 1}. Prontuário: ${p.PRONTUARIO}, Nome: ${p.PACIENTE}, Data Criação: ${p.DATA_CRIACAO}, Observação: "${p.OBSERVACAO}"`;
     }).join("\n");
@@ -85,7 +80,7 @@ export async function processReturnDates(pacientes: Paciente[]): Promise<Pacient
 
             if (response.text) {
                 textResponse = response.text;
-                break; // Sucesso, sai do loop
+                break;
             }
             throw new Error("Resposta vazia da API do Gemini.");
         } catch (error: any) {
@@ -109,7 +104,7 @@ export async function processReturnDates(pacientes: Paciente[]): Promise<Pacient
                 const parts = item.dataRetorno.split("/");
                 if (parts.length === 3) {
                     const day = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1; // 0-based month
+                    const month = parseInt(parts[1], 10) - 1;
                     const year = parseInt(parts[2], 10);
                     const parsedDate = new Date(year, month, day);
                     if (!isNaN(parsedDate.getTime())) {
