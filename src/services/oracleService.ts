@@ -25,7 +25,7 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
                     AND ec.ds_identificador IN ('obs_2229_1')
                     AND erc.lo_valor IS NOT NULL
                     AND pdc.dh_criacao >= ADD_MONTHS(SYSDATE, -12)
-                ORDER BY pdc.dh_criacao ASC
+                ORDER BY pdc.dh_criacao DESC
             ) WHERE ROWNUM <= :limit`,
             { limit },
             {
@@ -45,16 +45,28 @@ export async function fetchPacientes(limit: number): Promise<Paciente[]> {
 export async function updateDtRetornoCalc(cdPaciente: number, dtRetorno: Date | null): Promise<void> {
     return withConnection(async (connection) => {
 
-        if (!dtRetorno || dtRetorno <= new Date()) {
-            console.log(`Paciente ${cdPaciente}: a data ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : ''} não é futura. Nenhuma atualização realizada.`);
+        if (!dtRetorno) {
+            console.log(`Paciente ${cdPaciente}: a data é nula. Nenhuma atualização realizada.`);
             return;
         }
 
         const result = await connection.execute(
-            `UPDATE fav_lista_espera 
-             SET dt_retorno_calc = :dtRetorno 
-             WHERE cd_paciente = :cdPaciente
-               AND :dtRetorno > TRUNC(SYSDATE)`,
+            `UPDATE fav_lista_espera le
+             SET le.dt_retorno_calc = :dtRetorno
+             WHERE le.cd_atendimento = (
+                SELECT a.cd_atendimento
+                FROM atendime a
+                WHERE a.cd_paciente    = :cdPaciente
+                AND   a.tp_atendimento = 'A'
+                AND   a.dt_atendimento = (
+                    SELECT MAX(a2.dt_atendimento)
+                    FROM atendime a2
+                    WHERE a2.cd_paciente    = :cdPaciente
+                    AND   a2.tp_atendimento = 'A'
+                )
+            AND ROWNUM = 1
+            )
+            AND :dtRetorno > SYSDATE`,
             {
                 dtRetorno: dtRetorno,
                 cdPaciente: cdPaciente
@@ -62,9 +74,9 @@ export async function updateDtRetornoCalc(cdPaciente: number, dtRetorno: Date | 
             { autoCommit: true }
         );
         if (result.rowsAffected && result.rowsAffected > 0) {
-            console.log(`[Oracle] Paciente ${cdPaciente}: dt_retorno_calc atualizado para ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : 'NULL'}.`);
+            console.log(`[Oracle] Paciente ${cdPaciente}: dt_retorno_calc atualizado para ${dtRetorno.toLocaleDateString('pt-BR')}.`);
         } else {
-            console.log(`[Oracle] Paciente ${cdPaciente}: Nenhuma linha atualizada (data de retorno ${dtRetorno ? dtRetorno.toLocaleDateString('pt-BR') : 'NULL'} não é futura ou paciente não encontrado na tabela fav_lista_espera).`);
+            console.log(`[Oracle] Paciente ${cdPaciente}: Nenhuma linha atualizada (paciente não encontrado na tabela fav_lista_espera).`);
         }
     });
 }

@@ -5,7 +5,7 @@ import { processReturnDates } from "./services/llmService";
 async function main() {
     await initPool();
 
-    const pacientes = await fetchPacientes(1);
+    const pacientes = await fetchPacientes(100);
     console.log(`\n--- ${pacientes.length} pacientes recuperados do Oracle ---`);
 
     console.log("\nEnviando observações e datas de criação para a API do Gemini processar...");
