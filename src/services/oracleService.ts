@@ -66,7 +66,8 @@ export async function updateDtRetornoCalc(cdPaciente: number, dtRetorno: Date | 
                 )
             AND ROWNUM = 1
             )
-            AND :dtRetorno > SYSDATE`,
+            AND :dtRetorno > SYSDATE
+            AND le.tp_situacao = 'S'`,
             {
                 dtRetorno: dtRetorno,
                 cdPaciente: cdPaciente
@@ -136,6 +137,7 @@ export async function fetchPacientesComRetornos(limit: number): Promise<Paciente
                         'amb_especializado_2229_4_1', 'amb_dt_retorno_3_1'
                     )
                     AND pdc.dh_criacao >= ADD_MONTHS(SYSDATE, -12)
+                    AND le.tp_situacao = 'S'
                 GROUP BY 
                     pdc.cd_atendimento,
                     p.cd_paciente,
