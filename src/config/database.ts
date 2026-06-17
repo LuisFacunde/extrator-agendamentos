@@ -28,6 +28,27 @@ function initOracleClient(): void {
 
 let pool: oracledb.Pool;
 
+/**
+ * Retorna a instância do pool Oracle.
+ * Lança erro se initPool() ainda não foi chamado.
+ * Utilizado pelo plugin Fastify para gerenciar o ciclo de vida da conexão.
+ */
+export function getPool(): oracledb.Pool {
+    if (!pool) throw new Error("Pool Oracle não inicializado. Certifique-se de chamar initPool() antes.");
+    return pool;
+}
+
+/**
+ * Fecha o pool Oracle graciosamente.
+ * Deve ser chamado no shutdown do servidor (ex: fastify.addHook('onClose', ...)).
+ * @param drainTimeSeconds - Segundos para aguardar conexões ativas encerrarem.
+ */
+export async function closePool(drainTimeSeconds = 10): Promise<void> {
+    if (pool) {
+        await pool.close(drainTimeSeconds);
+    }
+}
+
 export async function initPool(): Promise<void> {
     validateEnv();
     initOracleClient();

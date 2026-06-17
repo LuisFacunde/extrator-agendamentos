@@ -1,36 +1,40 @@
+/**
+ * Script CLI — Processamento completo (busca → IA → update Oracle)
+ * Equivalente ao fluxo do POST /api/retornos/processar, mas executado via terminal.
+ *
+ * Uso: npm run dev
+ */
 import { initPool } from "./config/database";
-import { fetchPacientesComRetornos, updateDtRetornoCalc } from "./services/oracleService";
-import { processReturnDates } from "./services/llmService";
+import { OraclePacienteRepository } from "./infrastructure/database/OraclePacienteRepository";
+import { GeminiRetornoGateway } from "./infrastructure/gemini/GeminiRetornoGateway";
 
 async function main() {
     await initPool();
 
-    const pacientes = await fetchPacientesComRetornos(100);
+    const repository = new OraclePacienteRepository();
+    const gateway    = new GeminiRetornoGateway();
+
+    const pacientes = await repository.fetchComRetornos(100);
     console.log(`\n--- ${pacientes.length} pacientes recuperados do Oracle ---`);
 
-    // Mapeia os dados no formato esperado pela API do Gemini
-    const pacientesParaLLM = pacientes.map(p => ({
-        PRONTUARIO: p.prontuario,
-        PACIENTE: p.paciente,
-        DATA_CRIACAO: p.dataCriacao,
-        OBSERVACAO: p.observacao || ""
-    }));
+    console.log("\nProcessando datas de retorno (abordagem híbrida: código + IA)...");
+    const resultados = await gateway.processReturnDates(pacientes);
 
-    console.log("\nEnviando observações e datas de criação para a API do Gemini processar...");
-    const resultados = await processReturnDates(pacientesParaLLM);
-
-    console.log("\n=== RESULTADOS DO PROCESSAMENTO DE RETORNO (GEMINI) ===");
+    console.log("\n=== RESULTADOS DO PROCESSAMENTO DE RETORNO ===");
     console.table(
         resultados.map(r => ({
-            "Prontuário": r.prontuario,
-            "Paciente": r.nome,
-            "Retorno Estimado": r.dataRetorno ? r.dataRetorno.toLocaleDateString('pt-BR') : "Sem Retorno Calculado"
+            "Prontuário":      r.prontuario,
+            "Paciente":        r.nome,
+            "Retorno Estimado": r.dataRetorno ? r.dataRetorno.toLocaleDateString("pt-BR") : "Sem Retorno",
+            "Ambulatório":     r.ambulatorio || "-",
+            "Fonte":           r.fonte,
+            "MC":              r.marcacaoComplementar ? "Sim" : "Não"
         }))
     );
 
     console.log("\n=== SALVANDO RESULTADOS NO ORACLE (TABELA fav_lista_espera) ===");
     for (const r of resultados) {
-        await updateDtRetornoCalc(r.prontuario, r.dataRetorno);
+        await repository.updateDtRetornoCalc(r.prontuario, r.dataRetorno);
     }
 }
 
