@@ -1,7 +1,3 @@
-/**
- * Script CLI — Visualização dos dados de retorno sem processamento de IA.
- * Uso: npm run show-dates
- */
 import { initPool } from "./config/database";
 import { OraclePacienteRepository } from "./infrastructure/database/OraclePacienteRepository";
 
@@ -18,8 +14,8 @@ async function main() {
             pacientes.map(p => {
                 const isMC = !!(p.mcData && p.mcSetor);
                 return {
-                    "Prontuário":      p.prontuario,
-                    "Paciente":        p.paciente,
+                    "Prontuário": p.prontuario,
+                    "Paciente": p.paciente,
                     "Retorno Estimado": isMC
                         ? p.mcData
                         : (p.dtRetornoCalc ? p.dtRetornoCalc.toLocaleDateString("pt-BR") : "Sem Retorno Calculado"),

@@ -1,8 +1,3 @@
-/**
- * Script CLI — Visualização completa com comparação de todas as fontes de data.
- * Mostra dados brutos do Oracle + resultado do processamento híbrido (sem salvar).
- * Uso: npm run test-dates
- */
 import { initPool } from "../config/database";
 import { OraclePacienteRepository } from "../infrastructure/database/OraclePacienteRepository";
 import { GeminiRetornoGateway } from "../infrastructure/gemini/GeminiRetornoGateway";

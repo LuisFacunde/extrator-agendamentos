@@ -1,25 +1,25 @@
-# === Dependências ===
+# Dependências:
 node_modules/
 
-# === Build ===
+# Build:
 dist/
 
-# === Variáveis de ambiente (NUNCA versionar) ===
+# Variáveis de ambiente:
 .env
 .env.local
 .env.*.local
 
-# === Logs ===
+# Logs:
 logs/
 *.log
 npm-debug.log*
 
-# === Sistema Operacional ===
+# Sistema Operacional:
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# === IDEs e Editores ===
+# IDEs e Editores:
 .vscode/
 .idea/
 *.suo
@@ -27,16 +27,16 @@ desktop.ini
 *.njsproj
 *.sln
 
-# === TypeScript ===
+# TypeScript:
 *.tsbuildinfo
 
-# === Oracle ===
+# Oracle:
 *.dmp
 *.ora
 wallet/
 
-# === Documentação gerada ===
+# Documentação gerada:
 docs/
 
-# === Cobertura de testes ===
+# Cobertura de testes:
 coverage/

@@ -1,27 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import type { PacienteComRetornos, PacienteRetorno } from "../../domain/entities/Paciente";
 
-/**
- * CAMADA: Infrastructure — Gateway Gemini
- *
- * Encapsula TODAS as chamadas à API do Google Gemini.
- * Esta é a ÚNICA camada com permissão para interagir com o modelo de IA.
- *
- * Migrado de src/services/llmService.ts para a camada de infraestrutura,
- * refatorado como classe com métodos privados bem definidos.
- *
- * ESTRATÉGIA HÍBRIDA:
- * Para cada paciente, a classe coleta candidatos de múltiplas fontes:
- *   1. Marcação Complementar (MC_DATA / MC_SETOR) — dado estruturado
- *   2. Ambulatórios 1, 2, 3 (AMB_DT_RETORNO_*) — dado semi-estruturado
- *   3. Observação clínica livre (OBSERVACAO) — analisada pela IA Gemini
- * Ao final, seleciona a data futura mais próxima entre todos os candidatos.
- *
- * TRATAMENTO DE ERROS:
- * - A chamada ao Gemini tem 3 tentativas com espera de 3s entre elas.
- * - Se todas as tentativas falharem, o erro é propagado para o Use Case.
- */
-
 interface DateCandidate {
     date: Date;
     source: string;
@@ -35,11 +14,6 @@ interface GeminiPacienteItem {
 }
 
 export class GeminiRetornoGateway {
-
-    /**
-     * O cliente do Gemini é instanciado com a API key do ambiente.
-     * É criado aqui (no construtor) para facilitar substituição por mock em testes.
-     */
     private readonly ai: GoogleGenAI;
     private readonly modelName = "gemini-3.5-flash";
 
@@ -50,14 +24,6 @@ export class GeminiRetornoGateway {
         this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers de parsing de data
-    // -------------------------------------------------------------------------
-
-    /**
-     * Parseia datas no formato "YYYY/MM" (retornadas pelos campos de ambulatório).
-     * Retorna o primeiro dia do mês correspondente.
-     */
     private parseAmbDate(dateStr: string | null | undefined): Date | null {
         if (!dateStr || dateStr === "-" || dateStr.trim() === "") return null;
         const parts = dateStr.trim().split("/");
@@ -71,10 +37,6 @@ export class GeminiRetornoGateway {
         return null;
     }
 
-    /**
-     * Parseia datas no formato "DD/MM/YYYY" (retornadas pela IA e por campos MC).
-     * Tenta também o parser nativo do JS como fallback.
-     */
     private parseDDMMYYYY(dateStr: string | null | undefined): Date | null {
         if (
             !dateStr ||
@@ -93,15 +55,10 @@ export class GeminiRetornoGateway {
             if (!isNaN(date.getTime())) return date;
         }
 
-        // Fallback: parser nativo (útil para ISO 8601)
         const date = new Date(dateStr);
         return isNaN(date.getTime()) ? null : date;
     }
 
-    /**
-     * Seleciona o melhor candidato de data: a data futura mais próxima do presente.
-     * Candidatos passados são descartados.
-     */
     private selectBestDate(candidates: DateCandidate[]): DateCandidate | null {
         const now = new Date();
         now.setHours(0, 0, 0, 0);
@@ -113,25 +70,11 @@ export class GeminiRetornoGateway {
         return future[0] ?? null;
     }
 
-    // -------------------------------------------------------------------------
-    // Chamada ao Gemini (processamento de observações em lote)
-    // -------------------------------------------------------------------------
-
-    /**
-     * Envia as observações clínicas de texto livre para o Gemini em lote.
-     * O modelo extrai datas de retorno explícitas ou calcula com base em prazos relativos.
-     *
-     * A resposta é forçada como JSON estruturado via `responseMimeType` e `responseSchema`,
-     * eliminando a necessidade de parsear texto livre.
-     *
-     * @returns Map com prontuario → { dataRetorno, motivo } para os pacientes com observação.
-     */
     private async extractDatesFromObservations(
         pacientes: PacienteComRetornos[]
     ): Promise<Map<number, { dataRetorno: Date | null; motivo: string }>> {
         const result = new Map<number, { dataRetorno: Date | null; motivo: string }>();
 
-        // Filtra apenas pacientes que possuem observação clínica para enviar à IA
         const withObs = pacientes.filter(p => p.observacao && p.observacao.trim() !== "");
         if (withObs.length === 0) return result;
 
@@ -142,18 +85,15 @@ export class GeminiRetornoGateway {
         ).join("\n");
 
         const prompt = `Você é um assistente especializado em faturamento e agendamento médico.
-Sua tarefa é analisar APENAS o campo de OBSERVAÇÃO clínica de cada paciente e extrair a data de retorno mencionada.
+                        Sua tarefa é analisar APENAS o campo de OBSERVAÇÃO clínica de cada paciente e extrair a data de retorno mencionada.
 
-=== REGRAS DE EXTRAÇÃO ===
-1. Se a observação contiver uma data de retorno específica (ex: "RETORNO EM 07/07/2025"), extraia essa data.
-2. Se a observação contiver um prazo relativo (ex: "retorno em 3 meses", "retorno em 90 dias"), calcule a data somando o prazo à DATA DE CRIAÇÃO do documento.
-3. IMPORTANTE: A data NÃO deve ultrapassar 12 meses a partir da data de criação. Se ultrapassar, retorne string vazia.
-4. Se a observação NÃO indicar retorno (ex: "ENCAIXE", "PACIENTE ALTA", "MOSTRA DE EXAMES", "PRE OP"), retorne string vazia.
+                        === REGRAS DE EXTRAÇÃO ===
+                        1. Se a observação contiver uma data de retorno específica (ex: "RETORNO EM 07/07/2025"), extraia essa data.
+                        2. Se a observação contiver um prazo relativo (ex: "retorno em 3 meses", "retorno em 90 dias"), calcule a data somando o prazo à DATA DE CRIAÇÃO do documento.
+                        3. IMPORTANTE: A data NÃO deve ultrapassar 12 meses a partir da data de criação. Se ultrapassar, retorne string vazia.
+                        4. Se a observação NÃO indicar retorno (ex: "ENCAIXE", "PACIENTE ALTA", "MOSTRA DE EXAMES", "PRE OP"), retorne string vazia.
 
-Lista de Pacientes:
-${formattedList}`;
-
-        // Configuração do schema JSON esperado como resposta — garante parsing seguro
+                        Lista de Pacientes: ${formattedList}`;
         const responseSchema = {
             type: "OBJECT",
             properties: {
@@ -173,7 +113,6 @@ ${formattedList}`;
             required: ["pacientes"]
         };
 
-        // Mecanismo de retry: 3 tentativas com 3s de espera entre elas
         const maxRetries = 3;
         const delayMs    = 3000;
         let   textResponse = "";
@@ -188,7 +127,7 @@ ${formattedList}`;
 
                 if (!response.text) throw new Error("Resposta vazia da API do Gemini.");
                 textResponse = response.text;
-                break; // Sucesso — sai do loop de retry
+                break;
             } catch (error: any) {
                 if (attempt >= maxRetries) {
                     console.error("[Gemini] Todas as tentativas falharam:", error);
@@ -202,33 +141,16 @@ ${formattedList}`;
             }
         }
 
-        // Parseia o JSON retornado e povoa o Map de resultados
         const data = JSON.parse(textResponse) as { pacientes: GeminiPacienteItem[] };
         for (const item of data.pacientes ?? []) {
             result.set(item.prontuario, {
                 dataRetorno: this.parseDDMMYYYY(item.dataRetorno),
-                motivo:      item.motivo ?? ""
+                motivo: item.motivo ?? ""
             });
         }
-
         return result;
     }
 
-    // -------------------------------------------------------------------------
-    // Ponto de entrada público
-    // -------------------------------------------------------------------------
-
-    /**
-     * Processa as datas de retorno para uma lista de pacientes usando a abordagem híbrida.
-     *
-     * Para cada paciente:
-     * 1. Coleta candidatos estruturados (MC, Ambulatórios 1/2/3)
-     * 2. Obtém o resultado da análise de IA para a observação (em lote)
-     * 3. Seleciona a data futura mais próxima entre todos os candidatos
-     *
-     * @param pacientes - Lista de pacientes com dados de retorno do Oracle.
-     * @returns Lista de resultados com a data selecionada e a fonte da decisão.
-     */
     async processReturnDates(pacientes: PacienteComRetornos[]): Promise<PacienteRetorno[]> {
         if (!pacientes || pacientes.length === 0) return [];
 
@@ -239,13 +161,12 @@ ${formattedList}`;
         return pacientes.map((p): PacienteRetorno => {
             const candidates: DateCandidate[] = [];
 
-            // Fonte 1: Marcação Complementar (dado mais estruturado e confiável)
             if (p.mcData && p.mcSetor) {
                 const mcDate = this.parseDDMMYYYY(p.mcData);
                 if (mcDate) candidates.push({ date: mcDate, source: "Marcação Complementar", ambulatorio: p.mcSetor });
             }
 
-            // Fontes 2, 3, 4: Ambulatórios (formato YYYY/MM)
+
             const ambSlots = [
                 { esp: p.ambEspecializado1, dt: p.ambDtRetorno1, label: "Ambulatório 1" },
                 { esp: p.ambEspecializado2, dt: p.ambDtRetorno2, label: "Ambulatório 2" },
@@ -258,23 +179,21 @@ ${formattedList}`;
                 }
             }
 
-            // Fonte 5: Análise da IA sobre o campo de observação livre
             const obsResult = observationDates.get(p.prontuario);
             if (obsResult?.dataRetorno) {
                 candidates.push({ date: obsResult.dataRetorno, source: "Observação (IA)", ambulatorio: null });
             }
 
-            // Seleciona a melhor data (futura mais próxima)
             const best = this.selectBestDate(candidates);
 
             return {
-                prontuario:            p.prontuario,
-                nome:                  p.paciente,
-                dataRetorno:           best?.date ?? null,
-                ambulatorio:           best?.ambulatorio ?? null,
-                marcacaoComplementar:  best?.source === "Marcação Complementar",
-                fonte:                 best?.source ?? "Nenhuma fonte identificada",
-                motivo:                obsResult?.motivo ?? "",
+                prontuario: p.prontuario,
+                nome: p.paciente,
+                dataRetorno: best?.date ?? null,
+                ambulatorio: best?.ambulatorio ?? null,
+                marcacaoComplementar: best?.source === "Marcação Complementar",
+                fonte: best?.source ?? "Nenhuma fonte identificada",
+                motivo: obsResult?.motivo ?? "",
             };
         });
     }

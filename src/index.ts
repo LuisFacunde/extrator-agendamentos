@@ -1,9 +1,3 @@
-/**
- * Script CLI — Processamento completo (busca → IA → update Oracle)
- * Equivalente ao fluxo do POST /api/retornos/processar, mas executado via terminal.
- *
- * Uso: npm run dev
- */
 import { initPool } from "./config/database";
 import { OraclePacienteRepository } from "./infrastructure/database/OraclePacienteRepository";
 import { GeminiRetornoGateway } from "./infrastructure/gemini/GeminiRetornoGateway";
@@ -23,12 +17,12 @@ async function main() {
     console.log("\n=== RESULTADOS DO PROCESSAMENTO DE RETORNO ===");
     console.table(
         resultados.map(r => ({
-            "Prontuário":      r.prontuario,
-            "Paciente":        r.nome,
+            "Prontuário": r.prontuario,
+            "Paciente": r.nome,
             "Retorno Estimado": r.dataRetorno ? r.dataRetorno.toLocaleDateString("pt-BR") : "Sem Retorno",
-            "Ambulatório":     r.ambulatorio || "-",
-            "Fonte":           r.fonte,
-            "MC":              r.marcacaoComplementar ? "Sim" : "Não"
+            "Ambulatório": r.ambulatorio || "-",
+            "Fonte": r.fonte,
+            "MC": r.marcacaoComplementar ? "Sim" : "Não"
         }))
     );
 

@@ -3,28 +3,8 @@ import { withConnection } from "../../config/database";
 import type { IPacienteRepository } from "../../domain/repositories/IPacienteRepository";
 import type { PacienteComRetornos } from "../../domain/entities/Paciente";
 
-/**
- * CAMADA: Infrastructure — Repositório Oracle
- *
- * Implementação concreta de IPacienteRepository usando o driver `oracledb`.
- * Esta é a ÚNICA camada com permissão para executar queries SQL.
- *
- * Migrado de src/services/oracleService.ts para a camada de infraestrutura,
- * refatorado como classe para seguir os princípios de Clean Architecture.
- *
- * GERENCIAMENTO DE CONEXÕES:
- * - Não gerencia o pool diretamente. Recebe `withConnection` como utilitário
- *   que abstrai a aquisição/devolução de conexão ao pool.
- * - Cada operação (SELECT, UPDATE) obtém e devolve a conexão automaticamente
- *   no bloco try/finally de `withConnection`.
- */
 export class OraclePacienteRepository implements IPacienteRepository {
 
-    /**
-     * Remove o prefixo antes de "||" em campos LOB pivotados.
-     * O Oracle retorna campos CLOB no formato "prefixo||valor_real" após o pivot com MAX/CASE.
-     * Esta função extrai apenas o valor real.
-     */
     private cleanValue(val: string | null | undefined): string | null {
         if (!val) return null;
         const parts = val.split("||");
@@ -32,19 +12,6 @@ export class OraclePacienteRepository implements IPacienteRepository {
         return second ? second.trim() : val.trim();
     }
 
-    /**
-     * Busca pacientes com campos de retorno ambulatorial preenchidos.
-     *
-     * A query usa pivot manual (MAX + CASE) para consolidar múltiplas linhas
-     * de campos clínicos em uma única linha por atendimento.
-     *
-     * Filtros aplicados:
-     * - Documentos clínicos FECHADOS nos últimos 12 meses
-     * - Templates de formulário específicos (IDs: 583, 603, 604, 605, 606)
-     * - Apenas pacientes com situação ATIVA na fav_lista_espera (tp_situacao = 'S')
-     *
-     * @param limit - Máximo de pacientes a retornar (passado via bind variable para segurança).
-     */
     async fetchComRetornos(limit: number): Promise<PacienteComRetornos[]> {
         return withConnection(async (connection) => {
             const result = await connection.execute<any>(
@@ -111,40 +78,26 @@ export class OraclePacienteRepository implements IPacienteRepository {
 
             const rows = result.rows ?? [];
             return rows.map((row: any): PacienteComRetornos => ({
-                cdAtendimento:    row.CD_ATENDIMENTO,
-                prontuario:       row.PRONTUARIO,
-                paciente:         row.PACIENTE,
-                dataCriacao:      new Date(row.DATA_CRIACAO),
-                dtRetornoCalc:    row.DT_RETORNO_CALC ? new Date(row.DT_RETORNO_CALC) : null,
-                observacao:       row.OBSERVACAO ?? null,
+                cdAtendimento: row.CD_ATENDIMENTO,
+                prontuario: row.PRONTUARIO,
+                paciente: row.PACIENTE,
+                dataCriacao: new Date(row.DATA_CRIACAO),
+                dtRetornoCalc: row.DT_RETORNO_CALC ? new Date(row.DT_RETORNO_CALC) : null,
+                observacao: row.OBSERVACAO ?? null,
                 ambEspecializado1: this.cleanValue(row.AMB_ESPECIALIZADO_1),
-                ambDtRetorno1:    this.cleanValue(row.AMB_DT_RETORNO_1),
+                ambDtRetorno1: this.cleanValue(row.AMB_DT_RETORNO_1),
                 ambEspecializado2: this.cleanValue(row.AMB_ESPECIALIZADO_2),
-                ambDtRetorno2:    this.cleanValue(row.AMB_DT_RETORNO_2),
+                ambDtRetorno2: this.cleanValue(row.AMB_DT_RETORNO_2),
                 ambEspecializado3: this.cleanValue(row.AMB_ESPECIALIZADO_3),
-                ambDtRetorno3:    this.cleanValue(row.AMB_DT_RETORNO_3),
-                mcData:           this.cleanValue(row.MC_DATA),
-                mcSetor:          this.cleanValue(row.MC_SETOR),
+                ambDtRetorno3: this.cleanValue(row.AMB_DT_RETORNO_3),
+                mcData: this.cleanValue(row.MC_DATA),
+                mcSetor: this.cleanValue(row.MC_SETOR),
             }));
         });
     }
 
-    /**
-     * Atualiza o campo `dt_retorno_calc` para o atendimento mais recente do paciente.
-     *
-     * A query aplica regras de negócio internamente:
-     * - Seleciona o último atendimento ambulatorial (tp_atendimento = 'A')
-     * - Só atualiza se a data calculada for futura (> SYSDATE)
-     * - Só atualiza pacientes em situação ativa ('S')
-     *
-     * Usa autoCommit: true para confirmar a transação imediatamente.
-     *
-     * @param prontuario - cd_paciente no Oracle.
-     * @param dtRetorno  - Data a gravar; se null, a operação é ignorada.
-     */
     async updateDtRetornoCalc(prontuario: number, dtRetorno: Date | null): Promise<void> {
         return withConnection(async (connection) => {
-            // Regra de negócio: não atualizar se não houver data calculada
             if (!dtRetorno) {
                 console.log(`[Oracle] Paciente ${prontuario}: data nula — nenhuma atualização realizada.`);
                 return;
@@ -156,12 +109,12 @@ export class OraclePacienteRepository implements IPacienteRepository {
                  WHERE le.cd_atendimento = (
                     SELECT a.cd_atendimento
                     FROM atendime a
-                    WHERE a.cd_paciente    = :prontuario
+                    WHERE a.cd_paciente = :prontuario
                     AND   a.tp_atendimento = 'A'
                     AND   a.dt_atendimento = (
                         SELECT MAX(a2.dt_atendimento)
                         FROM atendime a2
-                        WHERE a2.cd_paciente    = :prontuario
+                        WHERE a2.cd_paciente = :prontuario
                         AND   a2.tp_atendimento = 'A'
                     )
                     AND ROWNUM = 1
