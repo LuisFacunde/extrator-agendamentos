@@ -28,7 +28,7 @@ export class GeminiRetornoGateway {
         if (!dateStr || dateStr === "-" || dateStr.trim() === "") return null;
         const parts = dateStr.trim().split("/");
         if (parts.length === 2) {
-            const year  = parseInt(parts[0] ?? "", 10);
+            const year = parseInt(parts[0] ?? "", 10);
             const month = parseInt(parts[1] ?? "", 10) - 1;
             if (!isNaN(year) && !isNaN(month)) {
                 return new Date(year, month, 1);
@@ -48,10 +48,10 @@ export class GeminiRetornoGateway {
 
         const parts = dateStr.trim().split("/");
         if (parts.length === 3) {
-            const day   = parseInt(parts[0] ?? "", 10);
+            const day = parseInt(parts[0] ?? "", 10);
             const month = parseInt(parts[1] ?? "", 10) - 1;
-            const year  = parseInt(parts[2] ?? "", 10);
-            const date  = new Date(year, month, day);
+            const year = parseInt(parts[2] ?? "", 10);
+            const date = new Date(year, month, day);
             if (!isNaN(date.getTime())) return date;
         }
 
@@ -102,9 +102,9 @@ export class GeminiRetornoGateway {
                     items: {
                         type: "OBJECT",
                         properties: {
-                            prontuario:  { type: "INTEGER",  description: "Número do prontuário." },
-                            dataRetorno: { type: "STRING",   description: "Data no formato DD/MM/YYYY ou vazia." },
-                            motivo:      { type: "STRING",   description: "Explicação de como a data foi extraída." }
+                            prontuario: { type: "INTEGER", description: "Número do prontuário." },
+                            dataRetorno: { type: "STRING", description: "Data no formato DD/MM/YYYY ou vazia." },
+                            motivo: { type: "STRING", description: "Explicação de como a data foi extraída." }
                         },
                         required: ["prontuario", "dataRetorno"]
                     }
@@ -114,15 +114,15 @@ export class GeminiRetornoGateway {
         };
 
         const maxRetries = 3;
-        const delayMs    = 3000;
-        let   textResponse = "";
+        const delayMs = 3000;
+        let textResponse = "";
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const response = await this.ai.models.generateContent({
-                    model:    this.modelName,
+                    model: this.modelName,
                     contents: prompt,
-                    config:   { responseMimeType: "application/json", responseSchema }
+                    config: { responseMimeType: "application/json", responseSchema }
                 });
 
                 if (!response.text) throw new Error("Resposta vazia da API do Gemini.");
@@ -186,10 +186,17 @@ export class GeminiRetornoGateway {
 
             const best = this.selectBestDate(candidates);
 
+            // filtro para data de retorno ser menor que 30 dias da data real final.
+            let finalDate: Date | null = null;
+            if (best) {
+                finalDate = new Date(best.date);
+                finalDate.setDate(finalDate.getDate() + 30);
+            }
+
             return {
                 prontuario: p.prontuario,
                 nome: p.paciente,
-                dataRetorno: best?.date ?? null,
+                dataRetorno: finalDate,
                 ambulatorio: best?.ambulatorio ?? null,
                 marcacaoComplementar: best?.source === "Marcação Complementar",
                 fonte: best?.source ?? "Nenhuma fonte identificada",
