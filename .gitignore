@@ -1,3 +1,42 @@
+# Dependências:
 node_modules/
+
+# Build:
 dist/
+
+# Variáveis de ambiente:
 .env
+.env.local
+.env.*.local
+
+# Logs:
+logs/
+*.log
+npm-debug.log*
+
+# Sistema Operacional:
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs e Editores:
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# TypeScript:
+*.tsbuildinfo
+
+# Oracle:
+*.dmp
+*.ora
+wallet/
+
+# Documentação gerada:
+docs/
+
+# Cobertura de testes:
+coverage/
