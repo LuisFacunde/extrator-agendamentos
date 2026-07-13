@@ -184,7 +184,11 @@ curl http://localhost:3000/health
 ```
 
 ```json
-{ "status": "ok", "version": "1.0.0", "time": "2025-07-13T14:00:00.000Z" }
+{
+   "status": "ok",
+   "version": "1.0.0",
+   "time": "2025-07-13T14:00:00.000Z"
+}
 ```
 
 ---
@@ -356,14 +360,10 @@ Regra de seleção: **a data futura mais próxima do dia atual** entre todos os 
 
 ## Stack Técnica
 
-| Tecnologia           | Uso                                             |
-| -------------------- | ----------------------------------------------- |
-| Node.js + TypeScript | Runtime e linguagem principal                   |
-| Fastify 5            | Framework HTTP da API REST                      |
-| oracledb             | Driver oficial Oracle Database                  |
-| @google/genai        | SDK Google Gemini (IA)                          |
-| fastify-plugin       | Gerenciamento de plugins Fastify                |
-| @fastify/sensible    | Helpers de erros HTTP padronizados              |
-| pino-pretty          | Formatação de logs em desenvolvimento           |
-| dotenv               | Carregamento de variáveis de ambiente           |
-| tsx                  | Execução TypeScript sem build (desenvolvimento) |
+| Tecnologia           | Uso                                   |
+| -------------------- | ------------------------------------- |
+| Node.js + TypeScript | Runtime e linguagem principal         |
+| Fastify 5            | Framework HTTP da API REST            |
+| oracledb             | Driver oficial Oracle Database        |
+| @google/genai        | SDK Google Gemini (IA)                |
+| dotenv               | Carregamento de variáveis de ambiente |
