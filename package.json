@@ -4,14 +4,10 @@
   "description": "API Fastify com Clean Architecture para processamento de agendamentos via Oracle + Gemini",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "npm run build && node dist/index.js",
+    "start": "tsx watch src/api/server.ts",
     "show-dates": "tsx src/showDates.ts",
-    "test-dates": "tsx src/utils/testAllDates.ts",
-    "api": "tsx watch src/api/server.ts",
-    "api:prod": "npm run build && node dist/api/server.js"
+    "test-dates": "tsx src/utils/testAllDates.ts"
   },
   "keywords": [],
   "author": "",
