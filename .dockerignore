@@ -1,0 +1,43 @@
+# Dependências
+node_modules/
+npm-debug.log*
+
+# Build TypeScript
+dist/
+coverage/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Documentação
+docs/
+README.md
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
