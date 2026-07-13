@@ -26,9 +26,10 @@ src/
 
 ## Pré-requisitos
 
-- Node.js 18+
+- Node.js 20+
 - Oracle Instant Client (para Thick Mode) — ou conexão direta via Thin Mode
 - Conta Google com acesso à Gemini API
+- **Docker** e **Docker Compose** (opcional, para execução em contêiner)
 
 ---
 
@@ -81,11 +82,11 @@ HOST=0.0.0.0
 Inicia o servidor HTTP na porta configurada (padrão: `3000`).
 
 ```bash
-# Desenvolvimento (watch mode — reinicia ao salvar)
-npm run api
+# Desenvolvimento
+npm run dev
 
 # Produção
-npm run api:prod
+npm start
 ```
 
 Saída esperada no startup:
@@ -101,11 +102,90 @@ Server listening at http://0.0.0.0:3000
 
 ### 2. Scripts de Linha de Comando (CLI)
 
-| Script                 | Comando              | Descrição                                        |
-| ---------------------- | -------------------- | ------------------------------------------------ |
-| Processamento completo | `npm run dev`        | Busca pacientes → Gemini → salva no Oracle       |
-| Visualizar dados       | `npm run show-dates` | Lista dados de retorno brutos do Oracle          |
-| Teste comparativo      | `npm run test-dates` | Exibe todas as fontes e o resultado por paciente |
+| Script            | Comando              | Descrição                                        |
+| ----------------- | -------------------- | ------------------------------------------------ |
+| Visualizar dados  | `npm run show-dates` | Lista dados de retorno brutos do Oracle          |
+| Teste comparativo | `npm run test-dates` | Exibe todas as fontes e o resultado por paciente |
+
+---
+
+## Docker
+
+### Pré-requisitos
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução.
+- O arquivo `.env` devidamente preenchido na raiz do projeto (o compose o lê automaticamente).
+
+> **Atenção:** O Oracle Database e a API do Gemini são serviços **externos** ao contêiner. Certifique-se de que `DB_HOST` aponta para um host acessível a partir da rede Docker (use o IP da máquina ou hostname — **não** use `localhost`).
+
+---
+
+### Construir a imagem
+
+```bash
+docker build -t extrator-agendamentos .
+```
+
+---
+
+### Subir com Docker Compose
+
+```bash
+# Constrói (se necessário) e sobe em segundo plano
+docker compose up --build -d
+```
+
+Acompanhar os logs em tempo real:
+
+```bash
+docker compose logs -f api
+```
+
+Verificar o status do contêiner:
+
+```bash
+docker compose ps
+```
+
+---
+
+### Parar e remover os contêineres
+
+```bash
+docker compose down
+```
+
+---
+
+### Variáveis de ambiente no Docker
+
+O `docker-compose.yml` lê automaticamente o `.env` da raiz do projeto. **Nunca comite o `.env`** — ele está no `.gitignore` e no `.dockerignore`.
+
+| Variável         | Descrição                                    | Obrigatório |
+| ---------------- | -------------------------------------------- | ----------- |
+| `DB_USER`        | Usuário Oracle                               | ✅          |
+| `DB_PASSWORD`    | Senha Oracle                                 | ✅          |
+| `DB_HOST`        | Host/IP do Oracle (acessível pelo contêiner) | ✅          |
+| `DB_PORT`        | Porta Oracle (padrão: `1521`)                | ✅          |
+| `DB_SERVICE`     | Service name do Oracle                       | ✅          |
+| `GEMINI_API_KEY` | Chave da API Google Gemini                   | ✅          |
+| `PORT`           | Porta da API (padrão: `3000`)                | ❌          |
+
+> `ORACLE_CLIENT_PATH` **não** é necessário no Docker — o Instant Client já está instalado na imagem em `/usr/lib/oracle/23/client64/lib`.
+
+---
+
+### Health Check
+
+A API expõe um endpoint de saúde que o Docker monitora automaticamente:
+
+```bash
+curl http://localhost:3000/health
+```
+
+```json
+{ "status": "ok", "version": "1.0.0", "time": "2025-07-13T14:00:00.000Z" }
+```
 
 ---
 
@@ -129,7 +209,7 @@ Verifica se o servidor está no ar.
 {
    "status": "ok",
    "version": "1.0.0",
-   "time": "2025-06-17T13:00:00.000Z"
+   "time": "2026-07-13T14:49:23.891Z"
 }
 ```
 
