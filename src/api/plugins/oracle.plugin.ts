@@ -13,7 +13,7 @@ const oraclePlugin: FastifyPluginAsync = async (fastify) => {
     fastify.addHook("onClose", async () => {
         fastify.log.info("[Oracle Plugin] Fechando pool de conexões Oracle...");
         try {
-            await closePool(10); // Aguarda até 10s pelas conexões ativas
+            await closePool(10);
             fastify.log.info("[Oracle Plugin] Pool Oracle fechado com sucesso.");
         } catch (err) {
             fastify.log.error({ err }, "[Oracle Plugin] Erro ao fechar pool Oracle.");

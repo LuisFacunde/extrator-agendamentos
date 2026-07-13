@@ -166,7 +166,6 @@ export class GeminiRetornoGateway {
                 if (mcDate) candidates.push({ date: mcDate, source: "Marcação Complementar", ambulatorio: p.mcSetor });
             }
 
-
             const ambSlots = [
                 { esp: p.ambEspecializado1, dt: p.ambDtRetorno1, label: "Ambulatório 1" },
                 { esp: p.ambEspecializado2, dt: p.ambDtRetorno2, label: "Ambulatório 2" },
@@ -186,7 +185,6 @@ export class GeminiRetornoGateway {
 
             const best = this.selectBestDate(candidates);
 
-            // filtro para data de retorno ser menor que 30 dias da data real final.
             let finalDate: Date | null = null;
             if (best) {
                 finalDate = new Date(best.date);
